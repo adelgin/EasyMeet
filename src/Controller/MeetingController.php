@@ -40,7 +40,8 @@ final class MeetingController extends AbstractController
         AvailabilitySlotsService $availabilityService,
         EntityManagerInterface $em
     ): Response {
-        $allUsers = $userRepository->findAll();
+        $allUsers = $userRepository->findAllBasicUsers();
+        $meetingRooms = $userRepository->findAllMeetingRooms();
 
         $commonSlot = null;
         $calcError = null;
@@ -48,6 +49,12 @@ final class MeetingController extends AbstractController
         if ($request->isMethod('POST')) {
             $postData = $request->request->all();
             $userIds = $postData['users'] ?? [];
+            $meeting_rooms = $postData['meeting_rooms'] ?? null;
+
+            if (!is_null($meeting_rooms)) {
+                $userIds[] = $meeting_rooms;
+            }
+
             $title = $postData['title'] ?? 'Новая встреча';
             $manualStart = $postData['manual_start'] ?? null;
             $manualEnd = $postData['manual_end'] ?? null;
@@ -62,18 +69,18 @@ final class MeetingController extends AbstractController
 
             if (empty($title)) {
                 $this->addFlash('error', 'Введите название встречи.');
-                return $this->render('meeting/new.html.twig', array_merge(['users' => $allUsers], $formData));
+                return $this->render('meeting/new.html.twig', array_merge(['users' => $allUsers, 'rooms' => $meetingRooms], $formData));
             }
 
             if (count($userIds) < 1) {
                 $this->addFlash('error', 'Выберите хотя бы одного участника.');
-                return $this->render('meeting/new.html.twig', array_merge(['users' => $allUsers], $formData));
+                return $this->render('meeting/new.html.twig', array_merge(['users' => $allUsers, 'rooms' => $meetingRooms], $formData));
             }
 
             $users = $userRepository->findBy(['id' => $userIds]);
             if (count($users) !== count($userIds)) {
                 $this->addFlash('error', 'Некоторые пользователи не найдены.');
-                return $this->render('meeting/new.html.twig', array_merge(['users' => $allUsers], $formData));
+                return $this->render('meeting/new.html.twig', array_merge(['users' => $allUsers, 'rooms' => $meetingRooms], $formData));
             }
 
             if ($action === 'calc') {
@@ -90,7 +97,7 @@ final class MeetingController extends AbstractController
                 }
 
                 return $this->render('meeting/new.html.twig', array_merge(
-                    ['users' => $allUsers, 'commonSlot' => $commonSlot, 'calcError' => $calcError],
+                    ['users' => $allUsers, 'rooms' => $meetingRooms, 'commonSlot' => $commonSlot, 'calcError' => $calcError],
                     $formData
                 ));
             }
@@ -102,14 +109,14 @@ final class MeetingController extends AbstractController
 
                     if (!$startAt || !$endAt || $startAt >= $endAt) {
                         $this->addFlash('error', 'Неверный формат или логика времени вручную введённого слота.');
-                        return $this->render('meeting/new.html.twig', array_merge(['users' => $allUsers], $formData));
+                        return $this->render('meeting/new.html.twig', array_merge(['users' => $allUsers, 'rooms' => $meetingRooms], $formData));
                     }
                 } else {
                     $commonSlots = $availabilityService->findCommonAvailability($users);
 
                     if (empty($commonSlots)) {
                         $this->addFlash('error', 'Общий доступный слот не найден.');
-                        return $this->render('meeting/new.html.twig', array_merge(['users' => $allUsers], $formData));
+                        return $this->render('meeting/new.html.twig', array_merge(['users' => $allUsers, 'rooms' => $meetingRooms], $formData));
                     }
 
                     $slot = $commonSlots[0];
@@ -121,7 +128,12 @@ final class MeetingController extends AbstractController
                 $meeting->setCreator($this->getUser());
                 $meeting->setStartAt($startAt);
                 $meeting->setEndAt($endAt);
-                $meeting->setStatus('scheduled');
+                if (is_null($meeting_rooms)) {
+                    $meeting->setStatus('scheduled');
+                } else {
+                    $meeting->setStatus('needs_approval');
+                }
+
                 $meeting->setTitle($title);
 
                 $em->persist($meeting);
@@ -138,13 +150,15 @@ final class MeetingController extends AbstractController
 
                 $em->flush();
 
-                $this->addFlash('success', 'Встреча "'.$title.'" создана!');
+                $this->addFlash('success', 'Встреча "' . $title . '" создана!');
                 return $this->redirectToRoute('meeting_list');
             }
         }
 
         return $this->render('meeting/new.html.twig', [
             'users' => $allUsers,
+            'rooms' => $meetingRooms,
         ]);
     }
+
 }

@@ -33,9 +33,20 @@ class UserRepository extends ServiceEntityRepository implements PasswordUpgrader
         $this->getEntityManager()->flush();
     }
 
-    public function getAll(): array
+    public function findAllBasicUsers(): array
     {
-        return $this->findAll();
+        return $this->createQueryBuilder('u')
+            ->andWhere('u.isMeetingRoom = false OR u.isMeetingRoom IS NULL')
+            ->getQuery()
+            ->getResult();
+    }
+
+    public function findAllMeetingRooms(): array
+    {
+        return $this->createQueryBuilder('u')
+            ->andWhere('u.isMeetingRoom = true')
+            ->getQuery()
+            ->getResult();
     }
 
     //    /**

@@ -1,0 +1,72 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Admin Meetings{% endblock %}
+
+{% block body %}
+    <h1>Admin: Meetings</h1>
+    
+    <a href="{{ path('meeting_new') }}" class="btn btn-primary mb-3">Create New Meeting</a>
+    
+    <div class="meetings-list">
+        {% for meeting in meetings %}
+            <div class="card mb-3 {% if meeting.status == 'pending' %}border-warning{% elseif meeting.startAt < date() %}border-secondary{% else %}border-success{% endif %}">
+                <div class="card-body">
+                    <h5 class="card-title">{{ meeting.title }}</h5>
+                    <h6 class="card-subtitle mb-2 text-muted">
+                        {{ meeting.startAt|date('Y-m-d H:i') }} - {{ meeting.endAt|date('H:i') }}
+                    </h6>
+                    
+                    <p class="card-text">
+                        <strong>Status:</strong> 
+                        <span class="badge 
+                            {% if meeting.status == 'pending' or meeting.status == 'needs_approval' %}bg-warning
+                            {% elseif meeting.startAt < date() %}bg-secondary
+                            {% else %}bg-success{% endif %}">
+                            {% if meeting.status == 'pending' or meeting.status == 'needs_approval' %}
+                                {% if meeting.participants|filter(p => p.status == 'needs_approval')|length %}
+                                    Waiting for room approval
+                                {% else %}
+                                    Pending
+                                {% endif %}
+                            {% elseif meeting.startAt < date() %}
+                                Completed
+                            {% else %}
+                                Confirmed
+                            {% endif %}
+                        </span>
+                    </p>
+                    
+                    <div class="participants">
+                        <strong>Participants:</strong>
+                        <ul>
+                            {% for participant in meeting.participants %}
+                                <li>
+                                    {{ participant.user.username }}
+                                    <span class="badge bg-{% if participant.status == 'confirmed' %}success{% elseif participant.status == 'needs_approval' %}warning{% else %}secondary{% endif %}">
+                                        {{ participant.status }}
+                                    </span>
+
+                                    {% if is_granted('ROLE_ADMIN') and participant.status == 'needs_approval' %}
+                                        <form method="post" action="{{ path('participant_approve', {'id': participant.id}) }}" style="display: inline;">
+                                            <input type="hidden" name="_token" value="{{ csrf_token('approve' ~ participant.id) }}">
+                                            <button type="submit" class="btn btn-sm btn-success">Approve</button>
+                                        </form>
+                                    {% endif %}
+                                </li>
+                            {% endfor %}
+                        </ul>
+                    </div>
+                    
+                    {% if is_granted('ROLE_ADMIN') and (meeting.status == 'pending' or meeting.status == 'needs_approval') %}
+                        <form method="post" action="{{ path('meeting_approve', {'id': meeting.id}) }}" style="display:inline;">
+                            <input type="hidden" name="_token" value="{{ csrf_token('approve_meeting' ~ meeting.id) }}">
+                            <button type="submit" class="btn btn-sm btn-success">Approve Meeting</button>
+                        </form>
+                    {% endif %}
+                </div>
+            </div>
+        {% else %}
+            <div class="alert alert-info">No meetings found</div>
+        {% endfor %}
+    </div>
+{% endblock %}

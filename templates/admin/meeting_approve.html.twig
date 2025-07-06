@@ -1,0 +1,16 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Approve Meeting{% endblock %}
+
+{% block body %}
+    <h1>Approve Meeting: {{ meeting.title }}</h1>
+    <p>Start: {{ meeting.startAt|date('Y-m-d H:i') }}</p>
+    <p>End: {{ meeting.endAt|date('Y-m-d H:i') }}</p>
+    <p>Status: {{ meeting.status }}</p>
+
+    <form method="post" action="{{ path('meeting_approve', {'id': meeting.id}) }}">
+        <input type="hidden" name="_token" value="{{ csrf_token('approve_meeting' ~ meeting.id) }}">
+        <button type="submit" class="btn btn-success">Confirm and Schedule Meeting</button>
+        <a href="{{ path('admin_meeting_list') }}" class="btn btn-secondary">Cancel</a>
+    </form>
+{% endblock %}

@@ -28,6 +28,11 @@ class MeetingRepository extends ServiceEntityRepository
             ->getResult();
     }
 
+    public function findAllMeetings(): array
+    {
+        return $this->findAll();
+    }
+
     //    /**
     //     * @return Meeting[] Returns an array of Meeting objects
     //     */
