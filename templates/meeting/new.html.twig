@@ -1,0 +1,46 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}New Meeting{% endblock %}
+
+{% block body %}
+<form method="post" action="{{ path('meeting_new') }}">
+    <div>
+        <label for="meeting_title">Название встречи:</label>
+        <input type="text" id="meeting_title" name="title" value="{{ title|default('') }}" required>
+    </div>
+
+    <div>
+        <label>Участники (выберите одного или нескольких):</label><br>
+        {% for user in users %}
+            <label>
+                <input type="checkbox" name="users[]" value="{{ user.id }}" 
+                    {% if user.id in selectedUserIds|default([]) %}checked{% endif %}>
+                {{ user.username }}
+            </label><br>
+        {% endfor %}
+    </div>
+
+    <div>
+        <label>Введите время:</label><br>
+        <label>Начало:
+            <input type="datetime-local" name="manual_start" value="{{ manualStart|default('') }}">
+        </label><br>
+        <label>Окончание:
+            <input type="datetime-local" name="manual_end" value="{{ manualEnd|default('') }}">
+        </label>
+    </div>
+
+    <button type="submit" name="action" value="create">Создать встречу</button>
+    <button type="submit" name="action" value="calc">Найти общий слот</button>
+
+    {% if commonSlot is defined %}
+        <div style="margin-top: 10px; color: green;">
+            Общий доступный слот: {{ commonSlot.start|date('Y-m-d H:i') }} — {{ commonSlot.end|date('Y-m-d H:i') }}
+        </div>
+    {% elseif calcError is defined %}
+        <div style="margin-top: 10px; color: red;">
+            Ошибка при поиске общего слота: {{ calcError }}
+        </div>
+    {% endif %}
+</form>
+{% endblock %}

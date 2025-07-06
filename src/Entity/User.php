@@ -3,6 +3,8 @@
 namespace App\Entity;
 
 use App\Repository\UserRepository;
+use Doctrine\Common\Collections\ArrayCollection;
+use Doctrine\Common\Collections\Collection;
 use Doctrine\ORM\Mapping as ORM;
 use Symfony\Bridge\Doctrine\Validator\Constraints\UniqueEntity;
 use Symfony\Component\Security\Core\User\PasswordAuthenticatedUserInterface;
@@ -32,6 +34,34 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
      */
     #[ORM\Column]
     private ?string $password = null;
+
+    /**
+     * @var Collection<int, AvailabilitySlots>
+     */
+    #[ORM\OneToMany(targetEntity: AvailabilitySlots::class, mappedBy: 'user', orphanRemoval: true)]
+    private Collection $availabilitySlots;
+
+    /**
+     * @var Collection<int, Meeting>
+     */
+    #[ORM\OneToMany(targetEntity: Meeting::class, mappedBy: 'creator')]
+    private Collection $createdMeetings;
+
+    /**
+     * @var Collection<int, MeetingParticipant>
+     */
+    #[ORM\OneToMany(targetEntity: MeetingParticipant::class, mappedBy: 'user')]
+    private Collection $meetings;
+
+    #[ORM\Column(nullable: true)]
+    private ?bool $isMeetingRoom = null;
+
+    public function __construct()
+    {
+        $this->availabilitySlots = new ArrayCollection();
+        $this->createdMeetings = new ArrayCollection();
+        $this->meetings = new ArrayCollection();
+    }
 
     public function getId(): ?int
     {
@@ -104,5 +134,107 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     {
         // If you store any temporary, sensitive data on the user, clear it here
         // $this->plainPassword = null;
+    }
+
+    /**
+     * @return Collection<int, AvailabilitySlots>
+     */
+    public function getAvailabilitySlots(): Collection
+    {
+        return $this->availabilitySlots;
+    }
+
+    public function addAvailabilitySlot(AvailabilitySlots $availabilitySlot): static
+    {
+        if (!$this->availabilitySlots->contains($availabilitySlot)) {
+            $this->availabilitySlots->add($availabilitySlot);
+            $availabilitySlot->setUser($this);
+        }
+
+        return $this;
+    }
+
+    public function removeAvailabilitySlot(AvailabilitySlots $availabilitySlot): static
+    {
+        if ($this->availabilitySlots->removeElement($availabilitySlot)) {
+            // set the owning side to null (unless already changed)
+            if ($availabilitySlot->getUser() === $this) {
+                $availabilitySlot->setUser(null);
+            }
+        }
+
+        return $this;
+    }
+
+    /**
+     * @return Collection<int, Meeting>
+     */
+    public function getCreatedMeetings(): Collection
+    {
+        return $this->createdMeetings;
+    }
+
+    public function addCreatedMeeting(Meeting $createdMeeting): static
+    {
+        if (!$this->createdMeetings->contains($createdMeeting)) {
+            $this->createdMeetings->add($createdMeeting);
+            $createdMeeting->setCreator($this);
+        }
+
+        return $this;
+    }
+
+    public function removeCreatedMeeting(Meeting $createdMeeting): static
+    {
+        if ($this->createdMeetings->removeElement($createdMeeting)) {
+            // set the owning side to null (unless already changed)
+            if ($createdMeeting->getCreator() === $this) {
+                $createdMeeting->setCreator(null);
+            }
+        }
+
+        return $this;
+    }
+
+    /**
+     * @return Collection<int, MeetingParticipant>
+     */
+    public function getMeetings(): Collection
+    {
+        return $this->meetings;
+    }
+
+    public function addMeeting(MeetingParticipant $meeting): static
+    {
+        if (!$this->meetings->contains($meeting)) {
+            $this->meetings->add($meeting);
+            $meeting->setUser($this);
+        }
+
+        return $this;
+    }
+
+    public function removeMeeting(MeetingParticipant $meeting): static
+    {
+        if ($this->meetings->removeElement($meeting)) {
+            // set the owning side to null (unless already changed)
+            if ($meeting->getUser() === $this) {
+                $meeting->setUser(null);
+            }
+        }
+
+        return $this;
+    }
+
+    public function isMeetingRoom(): ?bool
+    {
+        return $this->isMeetingRoom ?? false;
+    }
+
+    public function setIsMeetingRoom(bool $isMeetingRoom): static
+    {
+        $this->isMeetingRoom = $isMeetingRoom;
+
+        return $this;
     }
 }

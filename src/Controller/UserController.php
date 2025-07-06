@@ -16,7 +16,6 @@ final class UserController extends AbstractController
         $users = $userService->getAll();
 
         return $this->render('user/index.html.twig', [
-            'controller_name' => 'UserController',
             'users' => $users,
         ]);
     }
