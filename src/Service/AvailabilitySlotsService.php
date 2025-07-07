@@ -4,6 +4,7 @@ namespace App\Service;
 
 use App\Entity\AvailabilitySlots;
 use App\Entity\User;
+use DateInterval;
 use Doctrine\ORM\EntityManagerInterface;
 use \DateTimeImmutable;
 use Symfony\Bundle\SecurityBundle\Security;
@@ -20,12 +21,12 @@ class AvailabilitySlotsService
     public function addSlot(FormInterface $form): void
     {
         $availabilitySlot = $form->getData();
-        
+
         $user = $this->security->getUser();
-        
+
         if ($user) {
             $availabilitySlot->setUser($user);
-            
+
             $this->entityManager->persist($availabilitySlot);
             $this->entityManager->flush();
         }
@@ -38,7 +39,7 @@ class AvailabilitySlotsService
      * @param User[] $users Массив пользователей-участников
      * @return array Массив общих доступных слотов в формате [['start' => DateTimeImmutable, 'end' => DateTimeImmutable], ...]
      */
-    public function findCommonAvailability(array $users, ?DateInterval $meetingDuration = null): array
+    public function findCommonAvailability(array $users): array
     {
         if (empty($users)) {
             return [];
@@ -46,25 +47,19 @@ class AvailabilitySlotsService
 
         $allUserSlots = [];
         foreach ($users as $user) {
-            $slots = $user->getAvailabilitySlots()->toArray();
-            $userSlots = array_map(function (AvailabilitySlots $slot) {
-                return [
-                    'start' => $slot->getStartAt(),
-                    'end' => $slot->getEndAt(),
-                ];
-            }, $slots);
-            $allUserSlots[] = $userSlots;
+            if (!$user->isMeetingRoom()) {
+                $slots = $user->getAvailabilitySlots()->toArray();
+                $userSlots = array_map(function (AvailabilitySlots $slot) {
+                    return [
+                        'start' => $slot->getStartAt(),
+                        'end' => $slot->getEndAt(),
+                    ];
+                }, $slots);
+                $allUserSlots[] = $userSlots;
+            }
         }
 
-        $commonSlots = $this->intersectSlots($allUserSlots);
-
-        if ($meetingDuration !== null) {
-            $commonSlots = array_filter($commonSlots, function ($slot) use ($meetingDuration) {
-                return $slot['end']->getTimestamp() - $slot['start']->getTimestamp() >= $meetingDuration->s + $meetingDuration->i * 60 + $meetingDuration->h * 3600;
-            });
-        }
-
-        return $commonSlots;
+        return $this->intersectSlots($allUserSlots);
     }
 
     /**
@@ -110,5 +105,13 @@ class AvailabilitySlotsService
         }
 
         return $result;
+    }
+
+    private function isSlotDurationSufficient(array $slot, DateInterval $meetingDuration): bool
+    {
+        $slotDuration = $slot['end']->getTimestamp() - $slot['start']->getTimestamp();
+        $requiredDuration = $meetingDuration->s + $meetingDuration->i * 60 + $meetingDuration->h * 3600;
+
+        return $slotDuration >= $requiredDuration;
     }
 }

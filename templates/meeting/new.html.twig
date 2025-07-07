@@ -3,6 +3,18 @@
 {% block title %}New Meeting{% endblock %}
 
 {% block body %}
+{% for message in app.flashes('success') %}
+    <div class="alert alert-success">
+        {{ message }}
+    </div>
+{% endfor %}
+
+{% for message in app.flashes('error') %}
+    <div class="alert alert-danger">
+        {{ message }}
+    </div>
+{% endfor %}
+
 <form method="post" action="{{ path('meeting_new') }}">
     <div>
         <label for="meeting_title">Название встречи:</label>
@@ -13,7 +25,7 @@
         <label>Участники (выберите одного или нескольких):</label><br>
         {% for user in users %}
             <label>
-                <input type="checkbox" name="users[]" value="{{ user.id }}" 
+                <input type="checkbox" name="users[]" value="{{ user.id }}"
                     {% if user.id in selectedUserIds|default([]) %}checked{% endif %}>
                 {{ user.username }}
             </label><br>

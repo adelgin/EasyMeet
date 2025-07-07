@@ -2,98 +2,126 @@
 
 namespace App\Service;
 
-use App\Entity\{User, Meeting, MeetingParticipant, AvailabilitySlots};
+use App\Entity\{User, Meeting, MeetingParticipant};
+use App\Repository\UserRepository;
 use Doctrine\ORM\EntityManagerInterface;
-use App\Repository\AvailabilitySlotsRepository;
+use Symfony\Component\HttpFoundation\Request;
+use Symfony\Component\Security\Core\User\UserInterface;
 
 class MeetingService
 {
     public function __construct(
         private EntityManagerInterface $em,
-        private AvailabilitySlotsRepository $availabilityRepo
+        private UserRepository $userRepository,
+        private AvailabilitySlotsService $availabilityService
     ) {}
 
-    public function createMeeting(
-        User $creator,
-        string $title,
-        array $participants,
-        array $meetingRooms,
-        int $durationMinutes
-    ): ?Meeting {
-        $allParticipants = array_merge([$creator], $participants, $meetingRooms);
-        $commonSlot = $this->findCommonSlot($allParticipants, $durationMinutes);
-
-        if (!$commonSlot) {
-            return null;
-        }
-
-        $meeting = new Meeting();
-        $meeting->setCreator($creator);
-        $meeting->setTitle($title);
-        $meeting->setStartAt($commonSlot['start']);
-        $meeting->setEndAt($commonSlot['end']);
-
-        $this->addParticipants($meeting, $participants, $meetingRooms);
-
-        $this->em->persist($meeting);
-        $this->em->flush();
-
-        return $meeting;
+    public function getAllBasicUsersAndMeetingRooms(): array
+    {
+        return [
+            'users' => $this->userRepository->findAllBasicUsers(),
+            'rooms' => $this->userRepository->findAllMeetingRooms()
+        ];
     }
 
-    private function addParticipants(Meeting $meeting, array $users, array $meetingRooms): void
+    public function handleMeetingCreation(array $postData, UserInterface $creator): array
     {
-        foreach ($users as $user) {
-            $participant = new MeetingParticipant();
-            $participant->setUser($user);
-            $participant->setMeeting($meeting);
-            $participant->setStatus('confirmed');
-            $meeting->addParticipant($participant);
+        $userIds = $postData['users'] ?? [];
+        $meetingRooms = $postData['meeting_rooms'] ?? null;
+        $title = $postData['title'] ?? 'Новая встреча';
+        $manualStart = $postData['manual_start'] ?? null;
+        $manualEnd = $postData['manual_end'] ?? null;
+        $action = $postData['action'] ?? null;
+
+        $anyMeetingRoomAdded = $meetingRooms ? 1 : 0;
+        $userIds = $meetingRooms ? array_merge($userIds, [$meetingRooms]) : $userIds;
+
+        $formData = [
+            'selectedUserIds' => $userIds,
+            'manualStart' => $manualStart,
+            'manualEnd' => $manualEnd,
+            'title' => $title
+        ];
+
+        if (empty($title)) {
+            throw new \InvalidArgumentException('Введите название встречи.');
         }
 
-        foreach ($meetingRooms as $room) {
-            $participant = new MeetingParticipant();
-            $participant->setUser($room);
-            $participant->setMeeting($meeting);
-            $participant->setStatus('needs_approval');
-            $meeting->addParticipant($participant);
-        }
-    }
-
-    private function findCommonSlot(array $users, int $durationMinutes): ?array
-    {
-        $slotsByUser = [];
-        foreach ($users as $user) {
-            $slotsByUser[$user->getId()] = $this->availabilityRepo->findByUserOrdered($user);
+        if (count($userIds) - $anyMeetingRoomAdded < 1) {
+            throw new \InvalidArgumentException('Выберите хотя бы одного участника.');
         }
 
-        foreach ($slotsByUser[array_key_first($slotsByUser)] as $slot) {
-            $start = $slot->getStartAt();
-            $end = (clone $start)->modify("+{$durationMinutes} minutes");
+        $users = $this->userRepository->findBy(['id' => $userIds]);
+        if (count($users) !== count($userIds)) {
+            throw new \InvalidArgumentException('Некоторые пользователи не найдены.');
+        }
 
-            $allAvailable = true;
+        if ($action === 'calc') {
+            try {
+                $commonSlots = $this->availabilityService->findCommonAvailability($users);
+                $commonSlot = empty($commonSlots) ? null : $commonSlots[0];
+                $calcError = $commonSlot ? null : 'Общий доступный слот не найден.';
+
+                return [
+                    'commonSlot' => $commonSlot,
+                    'calcError' => $calcError,
+                    'formData' => $formData
+                ];
+            } catch (\Exception $e) {
+                return [
+                    'commonSlot' => null,
+                    'calcError' => 'Ошибка при расчёте: ' . $e->getMessage(),
+                    'formData' => $formData
+                ];
+            }
+        }
+
+        if ($action === 'create') {
+            if ($manualStart && $manualEnd) {
+                $startAt = \DateTimeImmutable::createFromFormat('Y-m-d\TH:i', $manualStart);
+                $endAt = \DateTimeImmutable::createFromFormat('Y-m-d\TH:i', $manualEnd);
+
+                if (!$startAt || !$endAt || $startAt >= $endAt || $startAt < new \DateTimeImmutable() || $endAt < new \DateTimeImmutable()) {
+                    throw new \InvalidArgumentException('Неверный формат или логика времени вручную введённого слота.');
+                }
+            } else {
+                $commonSlots = $this->availabilityService->findCommonAvailability($users);
+                if (empty($commonSlots)) {
+                    throw new \InvalidArgumentException('Общий доступный слот не найден.');
+                }
+
+                $slot = $commonSlots[0];
+                $startAt = $slot['start'];
+                $endAt = $slot['end'];
+            }
+
+            $meeting = new Meeting();
+            $meeting->setCreator($creator);
+            $meeting->setStartAt($startAt);
+            $meeting->setEndAt($endAt);
+            $meeting->setStatus($meetingRooms ? 'needs_approval' : 'scheduled');
+            $meeting->setTitle($title);
+
+            $this->em->persist($meeting);
+
             foreach ($users as $user) {
-                if ($user->getId() === $slot->getUser()->getId()) continue;
+                $participant = new MeetingParticipant();
+                $participant->setMeeting($meeting);
+                $participant->setUser($user);
+                $participant->setStatus('invited');
 
-                $userAvailable = false;
-                foreach ($slotsByUser[$user->getId()] as $userSlot) {
-                    if ($userSlot->getStartAt() <= $start && $userSlot->getEndAt() >= $end) {
-                        $userAvailable = true;
-                        break;
-                    }
-                }
-
-                if (!$userAvailable) {
-                    $allAvailable = false;
-                    break;
-                }
+                $this->em->persist($participant);
+                $meeting->addParticipant($participant);
             }
 
-            if ($allAvailable) {
-                return ['start' => $start, 'end' => $end];
-            }
+            $this->em->flush();
+
+            return [
+                'success' => true,
+                'title' => $title
+            ];
         }
 
-        return null;
+        return ['formData' => $formData];
     }
 }

@@ -13,10 +13,10 @@ final class UserController extends AbstractController
     #[Route('/', name: 'homepage')]
     public function index(Request $request, UserService $userService): Response
     {
-        $users = $userService->getAll();
+        $users = count($userService->getAll());
 
         return $this->render('user/index.html.twig', [
-            'users' => $users,
+            'users_count' => $users,
         ]);
     }
 }

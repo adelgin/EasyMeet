@@ -15,6 +15,7 @@ use App\Service\MeetingService;
 use App\Service\AvailabilitySlotsService;
 use App\Form\MeetingTypeForm;
 use App\Entity\Meeting;
+use Symfony\Component\Security\Http\Attribute\IsGranted;
 
 final class MeetingController extends AbstractController
 {
@@ -29,10 +30,11 @@ final class MeetingController extends AbstractController
                 'meetings' => $meetings,
             ]);
         }
-        
+
         return $this->redirectToRoute('login');
     }
 
+    #[IsGranted('ROLE_USER')]
     #[Route('/meeting/new', name: 'meeting_new')]
     public function new(
         Request $request,
@@ -47,12 +49,14 @@ final class MeetingController extends AbstractController
         $calcError = null;
 
         if ($request->isMethod('POST')) {
+            $anyMeetingRoomAdded = 0;
             $postData = $request->request->all();
             $userIds = $postData['users'] ?? [];
             $meeting_rooms = $postData['meeting_rooms'] ?? null;
 
             if (!is_null($meeting_rooms)) {
                 $userIds[] = $meeting_rooms;
+                $anyMeetingRoomAdded = 1;
             }
 
             $title = $postData['title'] ?? 'Новая встреча';
@@ -72,7 +76,7 @@ final class MeetingController extends AbstractController
                 return $this->render('meeting/new.html.twig', array_merge(['users' => $allUsers, 'rooms' => $meetingRooms], $formData));
             }
 
-            if (count($userIds) < 1) {
+            if (count($userIds) - $anyMeetingRoomAdded < 1) {
                 $this->addFlash('error', 'Выберите хотя бы одного участника.');
                 return $this->render('meeting/new.html.twig', array_merge(['users' => $allUsers, 'rooms' => $meetingRooms], $formData));
             }
@@ -107,7 +111,7 @@ final class MeetingController extends AbstractController
                     $startAt = \DateTimeImmutable::createFromFormat('Y-m-d\TH:i', $manualStart);
                     $endAt = \DateTimeImmutable::createFromFormat('Y-m-d\TH:i', $manualEnd);
 
-                    if (!$startAt || !$endAt || $startAt >= $endAt) {
+                    if (!$startAt || !$endAt || $startAt >= $endAt || $startAt < new \DateTimeImmutable() || $endAt < new \DateTimeImmutable()) {
                         $this->addFlash('error', 'Неверный формат или логика времени вручную введённого слота.');
                         return $this->render('meeting/new.html.twig', array_merge(['users' => $allUsers, 'rooms' => $meetingRooms], $formData));
                     }

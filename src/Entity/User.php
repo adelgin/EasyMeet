@@ -5,6 +5,7 @@ namespace App\Entity;
 use App\Repository\UserRepository;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
+use Doctrine\Common\Collections\Criteria;
 use Doctrine\ORM\Mapping as ORM;
 use Symfony\Bridge\Doctrine\Validator\Constraints\UniqueEntity;
 use Symfony\Component\Security\Core\User\PasswordAuthenticatedUserInterface;
@@ -141,7 +142,13 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
      */
     public function getAvailabilitySlots(): Collection
     {
-        return $this->availabilitySlots;
+        $now = new \DateTimeImmutable();
+
+        $criteria = Criteria::create()
+            ->where(Criteria::expr()->gt('start_at', $now))
+            ->orderBy(['start_at' => 'ASC']);
+
+        return $this->availabilitySlots->matching($criteria);
     }
 
     public function addAvailabilitySlot(AvailabilitySlots $availabilitySlot): static

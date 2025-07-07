@@ -9,9 +9,11 @@ use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
+use Symfony\Component\Security\Http\Attribute\IsGranted;
 
 final class AvailabilitySlotsController extends AbstractController
 {
+    #[IsGranted('ROLE_USER')]
     #[Route('/newslot', name: 'new_slot')]
     public function index(Request $request, AvailabilitySlotsService $availabilitySlotsService): Response
     {
@@ -21,16 +23,18 @@ final class AvailabilitySlotsController extends AbstractController
 
     if ($form->isSubmitted()) {
         if ($availabilitySlot->getStartAt() >= $availabilitySlot->getEndAt()) {
-                return $this->redirectToRoute('new_slot');
-            }
+            $this->addFlash('error', 'Дата начала встречи должна быть до даты окончания!');
+            return $this->redirectToRoute('new_slot');
+        }
 
         if (!$form->isValid()) {
             foreach ($form->getErrors(true) as $error) {
                 $this->addFlash('error', $error->getMessage());
+                return $this->redirectToRoute('new_slot');
             }
         } else {
             $availabilitySlotsService->addSlot($form);
-            $this->addFlash('success', 'Time slot was successfully added!');
+            $this->addFlash('success', 'Слот успешно задан!');
             return $this->redirectToRoute('new_slot');
         }
     }

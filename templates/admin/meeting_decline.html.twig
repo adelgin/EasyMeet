@@ -1,6 +1,6 @@
 {% extends 'base.html.twig' %}
 
-{% block title %}Подтвердить встречу{% endblock %}
+{% block title %}Отменить встречу{% endblock %}
 
 {% block body %}
     {% for message in app.flashes('success') %}
@@ -15,14 +15,14 @@
         </div>
     {% endfor %}
 
-    <h1>Подтвердить встречу: {{ meeting.title }}</h1>
+    <h1>Отменить встречу: {{ meeting.title }}</h1>
     <p>Начало: {{ meeting.startAt|date('Y-m-d H:i') }}</p>
     <p>Конец: {{ meeting.endAt|date('Y-m-d H:i') }}</p>
     <p>Статус: {{ meeting.status }}</p>
 
     <form method="post" action="{{ path('meeting_approve', {'id': meeting.id}) }}">
         <input type="hidden" name="_token" value="{{ csrf_token('approve_meeting' ~ meeting.id) }}">
-        <button type="submit" class="btn btn-success">Подтвердить встречу</button>
-        <a href="{{ path('admin_meeting_list') }}" class="btn btn-secondary">Отменить</a>
+        <button type="submit" class="btn btn-success">Поставить статус "отменена"</button>
+        <a href="{{ path('admin_meeting_list') }}" class="btn btn-secondary">Отменить действие</a>
     </form>
 {% endblock %}

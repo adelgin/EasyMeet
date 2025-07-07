@@ -1,12 +1,24 @@
 {% extends 'base.html.twig' %}
 
-{% block title %}Admin Meetings{% endblock %}
+{% block title %}Панель админа{% endblock %}
 
 {% block body %}
-    <h1>Admin: Meetings</h1>
-    
-    <a href="{{ path('meeting_new') }}" class="btn btn-primary mb-3">Create New Meeting</a>
-    
+    <h1>Встречи</h1>
+
+    {% for message in app.flashes('success') %}
+        <div class="alert alert-success">
+            {{ message }}
+        </div>
+    {% endfor %}
+
+    {% for message in app.flashes('error') %}
+        <div class="alert alert-danger">
+            {{ message }}
+        </div>
+    {% endfor %}
+
+    <a href="{{ path('meeting_new') }}" class="btn btn-primary mb-3">Новая встреча</a>
+
     <div class="meetings-list">
         {% for meeting in meetings %}
             <div class="card mb-3 {% if meeting.status == 'pending' %}border-warning{% elseif meeting.startAt < date() %}border-secondary{% else %}border-success{% endif %}">
@@ -15,58 +27,64 @@
                     <h6 class="card-subtitle mb-2 text-muted">
                         {{ meeting.startAt|date('Y-m-d H:i') }} - {{ meeting.endAt|date('H:i') }}
                     </h6>
-                    
+
                     <p class="card-text">
-                        <strong>Status:</strong> 
-                        <span class="badge 
-                            {% if meeting.status == 'pending' or meeting.status == 'needs_approval' %}bg-warning
+                        <strong>Статус:</strong>
+                        <span class="badge
+                            {% if meeting.status == 'needs_approval' %}bg-warning
+                            {% elseif meeting.status == 'decline' %}bg-danger
                             {% elseif meeting.startAt < date() %}bg-secondary
                             {% else %}bg-success{% endif %}">
-                            {% if meeting.status == 'pending' or meeting.status == 'needs_approval' %}
-                                {% if meeting.participants|filter(p => p.status == 'needs_approval')|length %}
-                                    Waiting for room approval
-                                {% else %}
-                                    Pending
-                                {% endif %}
+                            {% if meeting.status == 'needs_approval' %}
+                                Ожидает подтверждения
+                            {% elseif meeting.status == 'pending'%}
+                                Ожидается
+                            {% elseif meeting.status == 'decline'%}
+                                Отменена
                             {% elseif meeting.startAt < date() %}
-                                Completed
+                                Завершилась
                             {% else %}
-                                Confirmed
+                                Подтверждена
                             {% endif %}
                         </span>
                     </p>
-                    
+
                     <div class="participants">
-                        <strong>Participants:</strong>
+                        <strong>Участники:</strong>
                         <ul>
                             {% for participant in meeting.participants %}
                                 <li>
                                     {{ participant.user.username }}
-                                    <span class="badge bg-{% if participant.status == 'confirmed' %}success{% elseif participant.status == 'needs_approval' %}warning{% else %}secondary{% endif %}">
-                                        {{ participant.status }}
+                                    <span class="badge bg-{% if participant.status == 'invited' %}success{% else %}warning{% endif %}">
+                                        {% if participant.user.isMeetingRoom %}
+                                            Переговорка (комната)
+                                        {% elseif participant.status == 'invited' %}
+                                            Приглашён
+                                        {% endif %}
                                     </span>
 
                                     {% if is_granted('ROLE_ADMIN') and participant.status == 'needs_approval' %}
                                         <form method="post" action="{{ path('participant_approve', {'id': participant.id}) }}" style="display: inline;">
-                                            <input type="hidden" name="_token" value="{{ csrf_token('approve' ~ participant.id) }}">
-                                            <button type="submit" class="btn btn-sm btn-success">Approve</button>
+                                            <button type="submit" class="btn btn-sm btn-success">Подтвердить</button>
                                         </form>
                                     {% endif %}
                                 </li>
                             {% endfor %}
                         </ul>
                     </div>
-                    
+
                     {% if is_granted('ROLE_ADMIN') and (meeting.status == 'pending' or meeting.status == 'needs_approval') %}
                         <form method="post" action="{{ path('meeting_approve', {'id': meeting.id}) }}" style="display:inline;">
-                            <input type="hidden" name="_token" value="{{ csrf_token('approve_meeting' ~ meeting.id) }}">
-                            <button type="submit" class="btn btn-sm btn-success">Approve Meeting</button>
+                            <button type="submit" class="btn btn-sm btn-success">Подтвердить встречу</button>
+                        </form>
+                        <form method="post" action="{{ path('meeting_decline', {'id': meeting.id}) }}" style="display:inline;">
+                            <button type="submit" class="btn btn-sm btn-danger">Отменить встречу</button>
                         </form>
                     {% endif %}
                 </div>
             </div>
         {% else %}
-            <div class="alert alert-info">No meetings found</div>
+            <div class="alert alert-info">Встреч не найдено</div>
         {% endfor %}
     </div>
 {% endblock %}

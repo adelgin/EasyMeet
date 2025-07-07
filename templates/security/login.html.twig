@@ -14,10 +14,10 @@
             </div>
         {% endif %}
 
-        <h1 class="h3 mb-3 font-weight-normal">Please sign in</h1>
-        <label for="username">Username</label>
+        <h1 class="h3 mb-3 font-weight-normal">Пожалуйста, авторизуйтесь</h1>
+        <label for="username">Введите nickname</label>
         <input type="text" value="{{ last_username }}" name="_username" id="username" class="form-control" autocomplete="username" required autofocus>
-        <label for="password">Password</label>
+        <label for="password">Введите пароль</label>
         <input type="password" name="_password" id="password" class="form-control" autocomplete="current-password" required>
         <input type="hidden" name="_csrf_token" data-controller="csrf-protection" value="{{ csrf_token('authenticate') }}">
 
@@ -32,7 +32,8 @@
         #}
 
         <button class="btn btn-lg btn-primary" type="submit">
-            Sign in
+            Авторизоваться
         </button>
+        <p>Нет аккаунта? <a href="{{ path('app_register') }}">Зарегистрируйтесь</a></p>
     </form>
 {% endblock %}

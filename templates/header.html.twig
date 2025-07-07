@@ -1,0 +1,87 @@
+<header style="
+    background-color: #fff;
+    padding: 20px;
+    box-shadow: 0 2px 10px rgba(214, 51, 132, 0.1);
+    margin-bottom: 30px;
+    text-align: center;
+">
+    <h1 style="
+        color: #d63384;
+        margin-bottom: 10px;
+        font-size: 2em;
+    ">EasyMeet</h1>
+    <nav style="
+        display: inline-block;
+    ">
+        <a href="{{ path('homepage') }}" style="
+            color: #ec407a;
+            padding: 10px 15px;
+            text-decoration: none;
+            border-radius: 4px;
+            margin: 0 10px;
+            transition: background-color 0.3s;
+            &:hover {
+                background-color: #f8bbd0;
+            }
+        ">Главная</a>
+        <a href="{{ path('meeting_list') }}" style="
+            color: #ec407a;
+            padding: 10px 15px;
+            text-decoration: none;
+            border-radius: 4px;
+            margin: 0 10px;
+            transition: background-color 0.3s;
+            &:hover {
+                background-color: #f8bbd0;
+            }
+        ">Мои встречи</a>
+        <a href="{{ path('new_slot') }}" style="
+            color: #ec407a;
+            padding: 10px 15px;
+            text-decoration: none;
+            border-radius: 4px;
+            margin: 0 10px;
+            transition: background-color 0.3s;
+            &:hover {
+                background-color: #f8bbd0;
+            }
+        ">Создать новый слот</a>
+        <a href="{{ path('meeting_new') }}" style="
+            color: #ec407a;
+            padding: 10px 15px;
+            text-decoration: none;
+            border-radius: 4px;
+            margin: 0 10px;
+            transition: background-color 0.3s;
+            &:hover {
+                background-color: #f8bbd0;
+            }
+        ">Создать встречу</a>
+        {% if app.user %}
+            <a href="{{ path('app_logout') }}" style="
+                color: #ec407a;
+                padding: 10px 15px;
+                text-decoration: none;
+                border-radius: 4px;
+                margin: 0 10px;
+                transition: background-color 0.3s;
+                &:hover {
+                    background-color: #f8bbd0;
+                }
+            ">Выйти из аккаунта</a>
+        {% else %}
+            <a href="{{ path('login') }}" style="
+                color: #ec407a;
+                padding: 10px 15px;
+                text-decoration: none;
+                border-radius: 4px;
+                margin: 0 10px;
+                transition: background-color 0.3s;
+                &:hover {
+                    background-color: #f8bbd0;
+                }
+            ">Войти</a>
+        {% endif %}
+    </nav>
+</header>
+
